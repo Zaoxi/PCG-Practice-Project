@@ -92,5 +92,8 @@ public class GameManager : MonoBehaviour
 		enemiesMoving = false;
 	}
 
-    public void updateBoard(int horizontal, int vertical) { }
+    public void updateBoard(int horizontal, int vertical)
+    {
+        boardScript.addToBoard(horizontal, vertical);
+    }
 }

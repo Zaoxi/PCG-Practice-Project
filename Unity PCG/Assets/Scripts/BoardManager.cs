@@ -22,6 +22,7 @@ public class BoardManager : MonoBehaviour
     public int columns = 5;
     public int rows = 5;
     public GameObject[] floorTiles;
+    public GameObject[] wallTiles;
     private Transform boardHolder;
     private Dictionary<Vector2, Vector2> gridPositions = new Dictionary<Vector2, Vector2>();
 
@@ -70,7 +71,7 @@ public class BoardManager : MonoBehaviour
                 int sightY = y + 1;
                 for(y -= 1; y<=sightY; y++)
                 {
-                    addTIles(new Vector2(x, y));
+                    addTiles(new Vector2(x, y));
                 }
             }
         }
@@ -108,7 +109,23 @@ public class BoardManager : MonoBehaviour
     {
         if(!gridPositions.ContainsKey(tileToAdd))
         {
-            
+            gridPositions.Add(tileToAdd, tileToAdd);
+            GameObject toInstantiate = floorTiles[Random.Range(0, floorTiles.Length)];
+
+            GameObject instance = Instantiate(toInstantiate, new Vector3(tileToAdd.x, tileToAdd.y, 0f), Quaternion.identity) as GameObject;
+
+            instance.transform.SetParent(boardHolder);
+
+            // Choose at random a wall tile to lay
+            // 1/3 확률로 벽생성
+            if (Random.Range(0, 3) == 1)
+            {
+                // 랜덤으로 벽 하나 고름
+                toInstantiate = wallTiles[Random.Range(0, wallTiles.Length)];
+                // 고른 벽을 기준으로 벽 생성
+                instance = Instantiate(toInstantiate, new Vector3(tileToAdd.x, tileToAdd.y, 0f), Quaternion.identity) as GameObject;
+                instance.transform.SetParent(boardHolder);
+            }
         }
     }
 }
