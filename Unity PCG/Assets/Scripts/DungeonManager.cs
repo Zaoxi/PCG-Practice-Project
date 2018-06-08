@@ -8,7 +8,8 @@ public enum TileType
     essential, random, empty
 }
 
-public class DungeonManager : MonoBehaviour {
+public class DungeonManager : MonoBehaviour
+{
     [Serializable]
     public class PathTile
     {
@@ -16,7 +17,7 @@ public class DungeonManager : MonoBehaviour {
         public Vector2 position;
         public List<Vector2> adjacentPathTiles;
 
-        public PathTile(string t, Vector2 p, int min, int max, Dictionary<Vector2, TileType> currentTiles)
+        public PathTile(TileType t, Vector2 p, int min, int max, Dictionary<Vector2, TileType> currentTiles)
         {
             type = t;
             position = p;
@@ -26,11 +27,11 @@ public class DungeonManager : MonoBehaviour {
         public List<Vector2> GetAdjacentPath(int minBound, int maxBound, Dictionary<Vector2, TileType> currentTiles)
         {
             List<Vector2> pathTiles = new List<Vector2>();
-            if(position.y + 1 < maxBound && !currentTiles.ContainsKey(new Vector2(position.x, position.y + 1)))
+            if (position.y + 1 < maxBound && !currentTiles.ContainsKey(new Vector2(position.x, position.y + 1)))
             {
                 pathTiles.Add(new Vector2(position.x, position.y + 1));
             }
-            if(position.x + 1 < maxBound && !currentTiles.ContainsKey(new Vector2(position.x + 1, position.y)))
+            if (position.x + 1 < maxBound && !currentTiles.ContainsKey(new Vector2(position.x + 1, position.y)))
             {
                 pathTiles.Add(new Vector2(position.x + 1, position.y));
             }
@@ -38,7 +39,7 @@ public class DungeonManager : MonoBehaviour {
             {
                 pathTiles.Add(new Vector2(position.x, position.y - 1));
             }
-            if(position.x - 1 >= minBound && !currentTiles.ContainsKey(new Vector2(position.x - 1, position.y)) && type != TileType.essential)
+            if (position.x - 1 >= minBound && !currentTiles.ContainsKey(new Vector2(position.x - 1, position.y)) && type != TileType.essential)
             {
                 pathTiles.Add(new Vector2(position.x - 1, position.y));
             }
@@ -48,5 +49,123 @@ public class DungeonManager : MonoBehaviour {
         }
     }
 
-	
+    public Dictionary<Vector2, TileType> gridPositions = new Dictionary<Vector2, TileType>();
+
+    public int minBound = 0, maxBound;
+
+    public static Vector2 startPos;
+
+    public Vector2 endPos;
+
+    // 던전 생성기를 위한 구동함수
+    public void StartDungeon()
+    {
+        gridPositions.Clear();
+        maxBound = Random.Range(50, 101);
+
+        BuildEssentialPath();
+
+        BuildRandomPath();
+    }
+
+    private void BuildEssentialPath()
+    {
+        int randomY = Random.Range(0, maxBound + 1);
+        PathTile ePath = new PathTile(TileType.essential, new Vector2(0, randomY), minBound, maxBound, gridPositions);
+        startPos = ePath.position;
+        // 필수경로가 오른쪽으로 얼마나 확장되었는지 저장
+        int boundTracker = 0;
+
+        while (boundTracker < maxBound)
+        {
+            gridPositions.Add(ePath.position, TileType.empty);
+            int adjacentTileCount = ePath.adjacentPathTiles.Count;
+            int randomIndex = Random.Range(0, adjacentTileCount);
+
+            Vector2 nextEPathPos;
+            if (adjacentTileCount > 0)
+            {
+                nextEPathPos = ePath.adjacentPathTiles[randomIndex];
+            }
+            else
+            {
+                break;
+            }
+
+            PathTile nextEPath = new PathTile(TileType.essential, nextEPathPos, minBound, maxBound, gridPositions);
+            if (nextEPath.position.x > ePath.position.x || (nextEPath.position.x == maxBound - 1 && Random.Range(0, 2) == 1))
+            {
+                ++boundTracker;
+            }
+            ePath = nextEPath;
+        }
+        if (!gridPositions.ContainsKey(ePath.position))
+        {
+            gridPositions.Add(ePath.position, TileType.empty);
+        }
+
+        endPos = new Vector2(ePath.position.x, ePath.position.y);
+    }
+
+    private void BuildRandomPath()
+    {
+        List<PathTile> pathQueue = new List<PathTile>();
+        // 맵 상에 저장된 길의 정보 하나하나에 대하여 실행
+        foreach (KeyValuePair<Vector2, TileType> tile in gridPositions)
+        {
+            Vector2 tilePos = new Vector2(tile.Key.x, tile.Key.y);
+            // 각각의 길에 대해 인접 정보를 계산하여 큐에 넣는다.
+            pathQueue.Add(new PathTile(TileType.random, tilePos, minBound, maxBound, gridPositions));
+        }
+
+        pathQueue.ForEach(delegate (PathTile tile)
+        {
+            int adjacentTileCount = tile.adjacentPathTiles.Count;
+            if (adjacentTileCount != 0)
+            {
+                if (Random.Range(0, 5) == 1)
+                {
+                        // 챔버로 생성된 곳은 다시 큐에 추가되지 않는다
+                        BuildRandomChamber(tile);
+                }
+                else if (Random.Range(0, 5) == 1 || (tile.type == TileType.random && adjacentTileCount > 1))
+                {
+                    int randomIndex = Random.Range(0, adjacentTileCount);
+
+                    Vector2 newRPathPos = tile.adjacentPathTiles[randomIndex];
+
+                    if (!gridPositions.ContainsKey(newRPathPos))
+                    {
+                        gridPositions.Add(newRPathPos, TileType.empty);
+                            // 생성된 길은 다시 큐에 추가
+                            PathTile newRPath = new PathTile(TileType.random, newRPathPos, minBound, maxBound, gridPositions);
+                        pathQueue.Add(newRPath);
+                    }
+                }
+            }
+        });
+    }
+
+    private void BuildRandomChamber(PathTile tile)
+    {
+        int chamberSize = 3;
+        int adjacentTileCount = tile.adjacentPathTiles.Count;
+        int randomIndex = Random.Range(0, adjacentTileCount);
+        Vector2 chamberOrigin = tile.adjacentPathTiles[randomIndex];
+
+        for (int x = (int)chamberOrigin.x; x < chamberOrigin.x + chamberSize; x++)
+        {
+            for (int y = (int)chamberOrigin.y; y < chamberOrigin.y + chamberSize; y++)
+            {
+                Vector2 chamberTilePos = new Vector2(x, y);
+                if (!gridPositions.ContainsKey(chamberTilePos) &&
+                    chamberTilePos.x < maxBound && chamberTilePos.x > 0 &&
+                    chamberTilePos.y < maxBound && chamberTilePos.y > 0)
+                {
+                    gridPositions.Add(chamberTilePos, TileType.empty);
+                }
+            }
+        }
+
+    }
 }

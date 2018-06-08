@@ -10,7 +10,10 @@ public class Player : MovingObject
 	private int health;
     // 플레이어의 현재 위치를 저장하는 static 변수
     public static Vector2 position;
-	
+    // 플레이어가 존재하는 곳을 표시하는 플래그
+    public bool onWorldBoard;
+    // 플레이어가 던전이나 월드로 이동중일때 true
+    public bool dungeonTransition;
 	
 	protected override void Start ()
 	{
@@ -21,6 +24,9 @@ public class Player : MovingObject
 		healthText.text = "Health: " + health;
 
         position.x = position.y = 2;
+
+        onWorldBoard = true;
+        dungeonTransition = false;
 		
 		base.Start ();
 	}
@@ -45,12 +51,15 @@ public class Player : MovingObject
 
 		if(horizontal != 0 || vertical != 0)
 		{
-			canMove = AttemptMove<Wall> (horizontal, vertical);
-            if(canMove)
+            if (!dungeonTransition)
             {
-                position.x += horizontal;
-                position.y += vertical;
-                GameManager.instance.updateBoard(horizontal, vertical);
+                canMove = AttemptMove<Wall>(horizontal, vertical);
+                if (canMove && onWorldBoard)
+                {
+                    position.x += horizontal;
+                    position.y += vertical;
+                    GameManager.instance.updateBoard(horizontal, vertical);
+                }
             }
 		}
 	}
@@ -105,5 +114,37 @@ public class Player : MovingObject
 			GameManager.instance.GameOver ();
 		}
 	}
+
+    private void GoDungeonPortal()
+    {
+        Debug.Log("ddd");
+
+        // 포탈 진입시 현재 플레이어가 있는 곳을 기준으로 어디로 이동할지 판단.
+        if (onWorldBoard)
+        {
+            onWorldBoard = false;
+            GameManager.instance.enterDungeon();
+            transform.position = DungeonManager.startPos;
+        }
+        else
+        {
+            onWorldBoard = true;
+            GameManager.instance.exitDungeon();
+            transform.position = position;
+
+        }
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if(other.tag == "Exit")
+        {
+            Debug.Log("ddd");
+            dungeonTransition = true;
+            // 0.5초 뒤 GoDungeonPortal 메소드 호출
+            Invoke("GoDungeonPortal", 0.5f);
+            Destroy(other.gameObject);
+        }
+    }
 }
 

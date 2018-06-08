@@ -14,6 +14,9 @@ public class GameManager : MonoBehaviour
     private BoardManager boardScript;
     private List<Enemy> enemies;							//List of all Enemy units, used to issue them move commands.
 	private bool enemiesMoving;								//Boolean to check if enemies are moving.
+
+    private DungeonManager dungeonScript;
+    private Player playerScript;
     
 	void Awake()
 	{
@@ -31,7 +34,11 @@ public class GameManager : MonoBehaviour
 		enemies = new List<Enemy>();
 
         boardScript = GetComponent<BoardManager>();
-		
+
+        dungeonScript = GetComponent<DungeonManager>();
+        playerScript = GameObject.FindGameObjectWithTag("Player").GetComponent<Player>();
+
+
 		InitGame();
 	}
 	
@@ -95,5 +102,18 @@ public class GameManager : MonoBehaviour
     public void updateBoard(int horizontal, int vertical)
     {
         boardScript.addToBoard(horizontal, vertical);
+    }
+
+    public void enterDungeon()
+    {
+        dungeonScript.StartDungeon();
+        boardScript.SetDungeonBoard(dungeonScript.gridPositions, dungeonScript.maxBound, dungeonScript.endPos);
+        playerScript.dungeonTransition = false;
+    }
+
+    public void exitDungeon()
+    {
+        boardScript.SetWorldBoard();
+        playerScript.dungeonTransition = false;
     }
 }
