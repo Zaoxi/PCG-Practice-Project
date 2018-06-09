@@ -33,9 +33,9 @@ public class Player : MovingObject
 	
 	private void Update ()
 	{
-		if(!GameManager.instance.playersTurn) return;
-		
-		int horizontal = 0;
+        if (!GameManager.instance.playersTurn) return;
+
+        int horizontal = 0;
 		int vertical = 0;
 
         bool canMove = false;
@@ -117,8 +117,6 @@ public class Player : MovingObject
 
     private void GoDungeonPortal()
     {
-        Debug.Log("ddd");
-
         // 포탈 진입시 현재 플레이어가 있는 곳을 기준으로 어디로 이동할지 판단.
         if (onWorldBoard)
         {
@@ -139,11 +137,32 @@ public class Player : MovingObject
     {
         if(other.tag == "Exit")
         {
-            Debug.Log("ddd");
             dungeonTransition = true;
             // 0.5초 뒤 GoDungeonPortal 메소드 호출
             Invoke("GoDungeonPortal", 0.5f);
             Destroy(other.gameObject);
+        }
+        else if(other.tag == "Food" || other.tag == "Soda")
+        {
+            UpdateHealth(other);
+            Destroy(other.gameObject);
+        }
+    }
+
+    private void UpdateHealth(Collider2D item)
+    {
+        if(health < 100)
+        {
+            if (item.tag == "Food")
+            {
+                health += Random.Range(1, 4);
+            }
+            else
+            {
+                health += Random.Range(4, 11);
+            }
+            GameManager.instance.healthPoints = health;
+            healthText.text = "Health: " + health;
         }
     }
 }
