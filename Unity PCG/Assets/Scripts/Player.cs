@@ -1,9 +1,12 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.UI;
 
 public class Player : MovingObject
 {
+    public static bool isFacingRight;
+
 	public int wallDamage = 1;
 	public Text healthText;
 	private Animator animator;
@@ -14,6 +17,15 @@ public class Player : MovingObject
     public bool onWorldBoard;
     // 플레이어가 던전이나 월드로 이동중일때 true
     public bool dungeonTransition;
+
+    public Image glove;
+    public Image boot;
+
+    public int attackMod = 0, defenseMod = 0;
+    private Dictionary<string, Item> inventory;
+
+    private Weapon weapon;
+    public Image weaponComp1, weaponComp2, weaponComp3;
 	
 	protected override void Start ()
 	{
@@ -27,7 +39,9 @@ public class Player : MovingObject
 
         onWorldBoard = true;
         dungeonTransition = false;
-		
+
+        inventory = new Dictionary<string, Item>();
+
 		base.Start ();
 	}
 	
@@ -53,7 +67,14 @@ public class Player : MovingObject
 		{
             if (!dungeonTransition)
             {
-                canMove = AttemptMove<Wall>(horizontal, vertical);
+                if(onWorldBoard)
+                {
+                    canMove = AttemptMove<Wall>(horizontal, vertical);
+                }
+                else
+                {
+                    canMove = AttemptMove<Chest>(horizontal, vertical);
+                }
                 if (canMove && onWorldBoard)
                 {
                     position.x += horizontal;
@@ -70,20 +91,40 @@ public class Player : MovingObject
 		
 		GameManager.instance.playersTurn = false;
 
+        if(xDir == 1 && !isFacingRight)
+        {
+            isFacingRight = true;
+        }
+        else if(xDir == -1 && isFacingRight)
+        {
+            isFacingRight = false;
+        }
+
 		return hit;
 	}
 	
 	
 	protected override void OnCantMove <T> (T component)
 	{
-		//Set hitWall to equal the component passed in as a parameter.
-		Wall hitWall = component as Wall;
-		
-		//Call the DamageWall function of the Wall we are hitting.
-		hitWall.DamageWall (wallDamage);
+        // 벽인 경우
+        if(typeof(T) == typeof(Wall))
+        {
+            Wall blockingObj = component as Wall;
+            blockingObj.DamageWall(wallDamage);
+        }
+        else if(typeof(T) == typeof(Chest))
+        {
+            Chest blockingObj = component as Chest;
+            blockingObj.Open();
+        }
 		
 		//Set the attack trigger of the player's animation controller in order to play the player's attack animation.
 		animator.SetTrigger ("playerChop");
+        // 무기 애니메이션 호출
+        if(weapon)
+        {
+            weapon.useWeapon();
+        }
 	}
 	
 	//LoseHealth is called when an enemy attacks the player.
@@ -147,6 +188,29 @@ public class Player : MovingObject
             UpdateHealth(other);
             Destroy(other.gameObject);
         }
+        else if(other.tag == "Item")
+        {
+            UpdateInventory(other);
+            Destroy(other.gameObject);
+        }
+        else if(other.tag == "Weapon")
+        {
+            if(weapon)
+            {
+                Destroy(transform.GetChild(0).gameObject);
+            }
+            // Collider 기능 off
+            other.enabled = false;
+            other.transform.parent = transform;
+            weapon = other.GetComponent<Weapon>();
+            weapon.AquireWeapon();
+            weapon.inPlayerInventory = true;
+            weapon.enableSpriteRender(false);
+            wallDamage = attackMod + 3;
+            weaponComp1.sprite = weapon.getComponentImage(0);
+            weaponComp2.sprite = weapon.getComponentImage(1);
+            weaponComp3.sprite = weapon.getComponentImage(2);
+        }
     }
 
     private void UpdateHealth(Collider2D item)
@@ -163,6 +227,52 @@ public class Player : MovingObject
             }
             GameManager.instance.healthPoints = health;
             healthText.text = "Health: " + health;
+        }
+    }
+
+    private void UpdateInventory(Collider2D item)
+    {
+        Item itemData = item.GetComponent<Item>();
+        switch(itemData.type)
+        {
+            case itemType.glove:
+                if (!inventory.ContainsKey("glove"))
+                {
+                    inventory.Add("glove", itemData);
+                }
+                else
+                {
+                    inventory["glove"] = itemData;
+                }
+
+                glove.color = itemData.level;
+                break;
+            case itemType.boot:
+                if(!inventory.ContainsKey("boot"))
+                {
+                    inventory.Add("boot", itemData);
+                }
+                else
+                {
+                    inventory["boot"] = itemData;
+                }
+
+                boot.color = itemData.level;
+                break;
+        }
+
+        attackMod = 0;
+        defenseMod = 0;
+
+        foreach(KeyValuePair<string, Item> gear in inventory)
+        {
+            attackMod += gear.Value.attackMod;
+            defenseMod += gear.Value.defenseMod;
+        }
+
+        if(weapon)
+        {
+            wallDamage = attackMod + 3;
         }
     }
 }
